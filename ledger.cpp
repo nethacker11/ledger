@@ -4,6 +4,7 @@
 
 #include "user.hpp"
 #include "ledger.hpp"
+#include "json.hpp"
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -15,11 +16,15 @@
 
 namespace pt = boost::property_tree;
 
-void Ledger::HandleRead(const boost::system::error_code &e) {
+using json = nlohmann::json;
+
+void Ledger::HandleRead(const boost::system::error_code &e, size_t msg_len) {
 
     cout << "in handle read" << endl;
   if (!e) {
     cout << "in handle read" << endl;
+    cout << msg_len << endl;
+    
 /*
     cout << "in handle read" << endl;
     boost::asio::streambuf buf;
@@ -42,9 +47,12 @@ void Ledger::HandleRead(const boost::system::error_code &e) {
 
     b.consume(5);
 
+    /*
     boost::asio::async_read_until(connections[0]->socket_, b, DELIM,
                      boost::bind(&Ledger::HandleRead, this,
-                     boost::asio::placeholders::error));
+                     boost::asio::placeholders::error,
+                     boost::asio::placeholders::bytes_transferred));
+                     */
   } else {
     cerr << "Error reading from client" << endl;
     cerr << e.message() << endl;
@@ -72,7 +80,10 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
   if (!e) {
 
 
-    boost::asio::async_read_until(new_connection->socket_, b, DELIM, boost::bind(&Ledger::HandleRead, this, boost::asio::placeholders::error));
+    boost::asio::async_read_until(new_connection->socket_, b, DELIM, 
+          boost::bind(&Ledger::HandleRead, this, 
+          boost::asio::placeholders::error,
+          boost::asio::placeholders::bytes_transferred));
     cout << "passed async_read" << endl;
     /*
     User *tmp = getUser(name);

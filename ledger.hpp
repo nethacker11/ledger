@@ -57,7 +57,7 @@ public:
   void readConfig();
   void startAccept();
   void acceptHandler(tcp_connection::pointer new_connection, const boost::system::error_code& e);
-  void HandleRead(const boost::system::error_code &e);
+  void HandleRead(const boost::system::error_code &e, size_t msg_len);
   User *getUser(std::string name);
 
 };

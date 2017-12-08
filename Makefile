@@ -1,16 +1,20 @@
-CC = g++
+CC = g++-4.9
 CFLAGS = -std=c++11 -Iinclude -static
 LDFLAGS = -Llib -lboost_system -pthread
+DEPS = $(wildcard *.hpp)
 
-all: ledger
+all: ledger wallet
 
 ledger: ledger.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-%.o: %.cpp %.hpp
+wallet: wallet.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+%.o: %.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 .PHONY: clean
 clean:
-	rm -f ledger *.o
+	rm -f ledger wallet *.o
 
