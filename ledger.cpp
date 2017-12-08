@@ -18,7 +18,7 @@ namespace pt = boost::property_tree;
 
 using json = nlohmann::json;
 
-void Ledger::HandleRead(const boost::system::error_code &e, size_t msg_len) {
+void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t msg_len) {
 
   if (!e) {
 
@@ -51,8 +51,8 @@ void Ledger::HandleRead(const boost::system::error_code &e, size_t msg_len) {
 
     b.consume(msg_len + 3);
 
-    boost::asio::async_read_until(connections[0]->socket_, b, DELIM,
-                     boost::bind(&Ledger::HandleRead, this,
+    boost::asio::async_read_until(user->connection->socket_, b, DELIM,
+                     boost::bind(&Ledger::HandleRead, this, user,
                      boost::asio::placeholders::error,
                      boost::asio::placeholders::bytes_transferred));
   } else {
@@ -81,13 +81,15 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
 
   if (!e) {
 
+    boost::asio::streambuf buf;
+    boost::asio::read_until(new_connection->socket_, buf, DELIM); 
 
-    boost::asio::async_read_until(new_connection->socket_, b, DELIM, 
-          boost::bind(&Ledger::HandleRead, this, 
-          boost::asio::placeholders::error,
-          boost::asio::placeholders::bytes_transferred));
-    cout << "passed async_read" << endl;
-    /*
+    std::istream is(&buf);
+    std::string name;
+    is >> name;
+
+    cout << name << endl;
+
     User *tmp = getUser(name);
 
     // Make sure user exists and is not logged in
@@ -95,22 +97,25 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
 
       if (!tmp->isConnected) {
         cout << "found user" << endl;
-        //tmp->socket = socket;
-        //tmp->isConnected = true;
-        async_read_until(*socket, tmp->buffer, DELIM,
-                         boost::bind(&Ledger::HandleRead, this, tmp, _1, _2));
+        tmp->connection = new_connection;
+        tmp->isConnected = true;
+
+       boost::asio::async_read_until(tmp->connection->socket_, b, DELIM, 
+          boost::bind(&Ledger::HandleRead, this, tmp,
+          boost::asio::placeholders::error,
+          boost::asio::placeholders::bytes_transferred));
       } else {
         msg = "User already logged in";
-        boost::asio::write(*socket, boost::asio::buffer(msg));
+        //boost::asio::write(*socket, boost::asio::buffer(msg));
       }
 
     } else {
 
       msg = "Username not recognized";
-      boost::asio::write(*socket, boost::asio::buffer(msg));
+      //boost::asio::write(*socket, boost::asio::buffer(msg));
 
     }
-  */
+  
   }
 
     startAccept();
