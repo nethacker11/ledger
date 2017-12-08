@@ -12,9 +12,12 @@
 
 #include "networking.hpp"
 #include "tcp_connection.hpp"
+#include "json.hpp"
 
 using boost::asio::ip::tcp;
 using boost::asio::io_service;
+using json = nlohmann::json;
+
 /*
 class tcp_connection
   // Using shared_ptr and enable_shared_from_this 
@@ -62,6 +65,7 @@ public:
   void startAccept();
   void acceptHandler(tcp_connection::pointer new_connection, const boost::system::error_code& e);
   void HandleRead(User *user, const boost::system::error_code &e, size_t msg_len);
+  void processCommand(json msg);
   User *getUser(std::string name);
 
 };

@@ -4,7 +4,6 @@
 
 #include "user.hpp"
 #include "ledger.hpp"
-#include "json.hpp"
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -18,40 +17,38 @@ namespace pt = boost::property_tree;
 
 using json = nlohmann::json;
 
+void Ledger::processCommand(json msg) {
+
+  std::string command = msg["command"];
+
+  if (command == "login") {
+
+    cout << "user " << msg["name"] << " logged in" << endl;
+
+  }
+
+}
+
 void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t msg_len) {
 
   if (!e) {
 
-    std::istream is(&b);
-    std::string s;
+    json j;
 
-    is >> s;
+    cout << user->buffer.size() << endl;
+    user->buffer.commit(msg_len);
 
-    cout << s << endl;
-    
-/*
-    cout << "in handle read" << endl;
-    boost::asio::streambuf buf;
-    boost::asio::read_until(*socket, buf, DELIM); 
-
-    std::istream is(&buf);
-    std::string name;
-    is >> name;
-
-    cout << name << endl;
-    boost::asio::streambuf buf;
-
-    std::istream is(&buf);
+    std::istream is(&user->buffer);
     std::string msg;
     is >> msg;
 
-    cout << msg << endl;
+    j = json::parse(msg);
 
-    */
+    processCommand(j);
 
-    b.consume(msg_len + 3);
+    user->buffer.consume(msg_len + 3);
 
-    boost::asio::async_read_until(user->connection->socket_, b, DELIM,
+    boost::asio::async_read_until(user->connection->socket_, user->buffer, DELIM,
                      boost::bind(&Ledger::HandleRead, this, user,
                      boost::asio::placeholders::error,
                      boost::asio::placeholders::bytes_transferred));
@@ -85,8 +82,11 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
     boost::asio::read_until(new_connection->socket_, buf, DELIM); 
 
     std::istream is(&buf);
-    std::string name;
-    is >> name;
+    std::string login;
+    is >> login;
+
+    json login_msg = json::parse(login);
+    std::string name = login_msg["name"];
 
     cout << name << endl;
 
@@ -100,22 +100,26 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
         tmp->connection = new_connection;
         tmp->isConnected = true;
 
-       boost::asio::async_read_until(tmp->connection->socket_, b, DELIM, 
-          boost::bind(&Ledger::HandleRead, this, tmp,
-          boost::asio::placeholders::error,
-          boost::asio::placeholders::bytes_transferred));
+        boost::asio::async_read_until(tmp->connection->socket_, tmp->buffer, DELIM, 
+            boost::bind(&Ledger::HandleRead, this, tmp,
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+
       } else {
-        msg = "User already logged in";
-        //boost::asio::write(*socket, boost::asio::buffer(msg));
+        json response;
+        response["response"] = "User already logged in";
+        ostringstream os;
+        os << response;
+        cout << response.dump() << endl;
+        boost::asio::write(new_connection->socket_, boost::asio::buffer(os.str() + DELIM));
       }
 
     } else {
 
       msg = "Username not recognized";
-      //boost::asio::write(*socket, boost::asio::buffer(msg));
+      boost::asio::write(new_connection->socket_, boost::asio::buffer(msg + DELIM));
 
     }
-  
   }
 
     startAccept();

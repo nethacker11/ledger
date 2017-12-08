@@ -38,6 +38,32 @@ using json = nlohmann::json;
   
 */
 
+void send(json msg, tcp::socket &socket) {
+
+  ostringstream os;
+  os << msg;
+  boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
+}
+
+json makeMsg(std::string command, std::string data) {
+
+  json msg;
+
+  if (command == "login") {
+
+    msg["name"] = data;
+    msg["command"] = "login";
+  }
+
+  return msg;
+}
+
+void login(std::string name, tcp::socket &socket) {
+
+  json login = makeMsg("login", name);
+  send(login, socket);
+}
+
 int main(int argc, char **argv) {
 
 
@@ -45,11 +71,6 @@ int main(int argc, char **argv) {
     cout << "usage: wallet <name>" << endl;
     exit(1);
   }
-
-  json j;
-
-  j["name"] = "phil";
-  
 
 
   io_service io_service;
@@ -61,11 +82,39 @@ int main(int argc, char **argv) {
   tcp::resolver::query query(ADDRESS, PORT_STR);
   tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
   
-  boost::asio::connect(socket, endpoint_iterator);
+  try {
+    boost::asio::connect(socket, endpoint_iterator);
+  } catch (const boost::system::system_error &e) {
 
-  std::string msg = "hello";
+    cerr << "Could not connect to server" << endl;
+    exit(1);
+  }
 
-  boost::asio::write(socket, boost::asio::buffer(j.dump()));
+  std::string name = argv[1];
+
+  login(name, socket);
+
+  boost::asio::streambuf recv_buf;
+  size_t msg_len = boost::asio::read_until(socket, recv_buf, DELIM);
+
+  boost::asio::streambuf::const_buffers_type bufs = recv_buf.data();
+  std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
+
+  /*
+  cout << msg_len << endl;
+  recv_buf.commit(msg_len);
+
+  std::istream is(&recv_buf);
+  std::string msg;
+  is >> msg;
+
+  */
+  json tmp = json::parse(msg);
+
+  cout << tmp["response"] << endl;
+  
+  
+  for (;;) { }
 
 
 
