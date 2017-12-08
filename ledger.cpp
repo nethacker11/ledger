@@ -35,18 +35,22 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
 
     json j;
 
+    /*
     cout << user->buffer.size() << endl;
     user->buffer.commit(msg_len);
 
     std::istream is(&user->buffer);
     std::string msg;
     is >> msg;
+    */
 
+    boost::asio::streambuf::const_buffers_type bufs = user->buffer.data();
+    std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
     j = json::parse(msg);
 
     processCommand(j);
 
-    user->buffer.consume(msg_len + 3);
+    user->buffer.consume(msg_len + DELIM.length());
 
     boost::asio::async_read_until(user->connection->socket_, user->buffer, DELIM,
                      boost::bind(&Ledger::HandleRead, this, user,
@@ -91,36 +95,40 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
     cout << name << endl;
 
     User *tmp = getUser(name);
+    json response;
+    ostringstream os;
 
     // Make sure user exists and is not logged in
     if (tmp) {
 
       if (!tmp->isConnected) {
-        cout << "found user" << endl;
+
         tmp->connection = new_connection;
         tmp->isConnected = true;
 
         boost::asio::async_read_until(tmp->connection->socket_, tmp->buffer, DELIM, 
             boost::bind(&Ledger::HandleRead, this, tmp,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+              boost::asio::placeholders::error,
+              boost::asio::placeholders::bytes_transferred));
+
+
+        response["response"] = "success";
 
       } else {
-        json response;
-        response["response"] = "User already logged in";
-        ostringstream os;
-        os << response;
-        cout << response.dump() << endl;
-        boost::asio::write(new_connection->socket_, boost::asio::buffer(os.str() + DELIM));
-      }
 
+        response["response"] = "User already logged in";
+      }
     } else {
 
-      msg = "Username not recognized";
-      boost::asio::write(new_connection->socket_, boost::asio::buffer(msg + DELIM));
-
+      response["response"] = "Username not recognized";
     }
+
+    os << response;
+    boost::asio::write(new_connection->socket_, boost::asio::buffer(os.str() + DELIM));
+
+
   }
+
 
     startAccept();
 }
