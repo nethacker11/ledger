@@ -12,10 +12,12 @@ public:
   string name;
   float btc; 
   float eth;
-  //tcp::socket socket; // can't store the socket, is this a good idea?
+  bool isConnected;
+  boost::asio::streambuf buffer;
+  tcp::socket *socket; // can't store the socket, is this a good idea?
 
   User(string name, float btc, float eth)
-    : name(name), btc(btc), eth(eth)
+    : name(name), btc(btc), eth(eth), isConnected(false)
     {}
   
 };
