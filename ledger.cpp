@@ -20,10 +20,14 @@ using json = nlohmann::json;
 
 void Ledger::HandleRead(const boost::system::error_code &e, size_t msg_len) {
 
-    cout << "in handle read" << endl;
   if (!e) {
-    cout << "in handle read" << endl;
-    cout << msg_len << endl;
+
+    std::istream is(&b);
+    std::string s;
+
+    is >> s;
+
+    cout << s << endl;
     
 /*
     cout << "in handle read" << endl;
@@ -45,14 +49,12 @@ void Ledger::HandleRead(const boost::system::error_code &e, size_t msg_len) {
 
     */
 
-    b.consume(5);
+    b.consume(msg_len + 3);
 
-    /*
     boost::asio::async_read_until(connections[0]->socket_, b, DELIM,
                      boost::bind(&Ledger::HandleRead, this,
                      boost::asio::placeholders::error,
                      boost::asio::placeholders::bytes_transferred));
-                     */
   } else {
     cerr << "Error reading from client" << endl;
     cerr << e.message() << endl;

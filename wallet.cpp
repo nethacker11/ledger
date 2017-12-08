@@ -14,6 +14,29 @@
 using boost::asio::ip::tcp;
 using boost::asio::io_service;
 using namespace std;
+namespace pt = boost::property_tree;
+using json = nlohmann::json;
+
+
+/*
+
+   { 
+     "name" : "phil"
+     "command" : "login", 
+   }
+
+   {
+     "name" : "phil"
+     "command" : "pay"
+
+     {
+        "name" : "hannah",
+        "currency" : "btc",
+        "amount" : 333
+     }
+  }
+  
+*/
 
 int main(int argc, char **argv) {
 
@@ -22,6 +45,11 @@ int main(int argc, char **argv) {
     cout << "usage: wallet <name>" << endl;
     exit(1);
   }
+
+  json j;
+
+  j["name"] = "phil";
+  
 
 
   io_service io_service;
@@ -37,7 +65,7 @@ int main(int argc, char **argv) {
 
   std::string msg = "hello";
 
-  boost::asio::write(socket, boost::asio::buffer(msg));
+  boost::asio::write(socket, boost::asio::buffer(j.dump()));
 
 
 
