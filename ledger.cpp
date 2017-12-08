@@ -27,34 +27,26 @@ void Ledger::readConfig() {
     float eth =  v.second.get<float>("eth");
 
     users.push_back(new User(name, btc, eth));
-    //pt::ptre e &subtree = v.second; // value (or a subnode)
   }
 }
 
 
 int main(int argc, char **argv) {
 
-  Ledger *ledger = new Ledger();
+  io_service io_service;
+  boost::asio::io_service::work work(io_service);
 
+  Ledger ledger(io_service);
+  cout << "ledger created" << endl;
 
-  for ( auto &i: ledger->users ) {
+  io_service.run();
 
-    cout << i->name << endl;
-
-  }
-
-
-  /*
-  std::stringstream s;
-  pt::json_parser::write_json(s, root);
-  cout << s.str() << endl;
-  */
+  
 
   // Free allocated memory
-  for ( auto &i: ledger->users ) {
+  for ( auto &i: ledger.users ) {
     delete(i);
   }
-  delete(ledger);
 
   return 0;
 }

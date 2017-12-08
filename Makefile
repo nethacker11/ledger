@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -std=c++11 
-LDFLAGS = 
+CFLAGS = -std=c++11 -Iinclude -static
+LDFLAGS = -Llib -lboost_system -pthread
 
 all: ledger
 
