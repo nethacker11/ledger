@@ -83,24 +83,34 @@ void Ledger::processCommand(json msg, User *user) {
       current_amount = user->eth;
     }
     response["message"] = to_string(current_amount);
+
   } else if (command == "log") {
 
     std::string response_msg;
 
     if (msg["user"] == "mine") {
-
+ 
       for ( auto &i: user->transactions ) {
 
         response_msg += i;
         response_msg += '\n';
-
       }
+    } else {
 
-      response["message"] = response_msg;
+      for ( auto &i: users ) {
+        for ( auto &j: i->transactions ) {
 
+          response_msg += j;
+          response_msg += '\n';
+
+        }
+      }
     }
 
-
+    if (response_msg.length() > 0) {
+      response_msg.erase(response_msg.length()-1, 1);
+    }
+    response["message"] = response_msg;
   }
   send(response, user->connection->socket_);
 }
