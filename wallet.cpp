@@ -47,6 +47,17 @@ void send(json msg, tcp::socket &socket) {
   boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
 }
 
+json recv(tcp::socket &socket) {
+
+  boost::asio::streambuf recv_buf;
+  size_t msg_len = boost::asio::read_until(socket, recv_buf, DELIM);
+
+  boost::asio::streambuf::const_buffers_type bufs = recv_buf.data();
+  std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
+
+  return json::parse(msg);
+}
+
 bool checkPayString(std::string pay_string) {
 
   size_t str_len = pay_string.length();
@@ -84,7 +95,7 @@ bool checkLogString(std::string log_string) {
   return false;
 }
 
-void processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
+bool processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
 
   /* valid commands:
    * pay
@@ -157,6 +168,8 @@ void processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
   if (valid) {
     send(msg, socket);
   }
+
+  return valid;
 }
 
 
@@ -206,20 +219,14 @@ int main(int argc, char **argv) {
 
   std::string name = argv[1];
 
+  // aknowdledge login
   login(name, socket);
+  json response = recv(socket);
 
-  boost::asio::streambuf recv_buf;
-  size_t msg_len = boost::asio::read_until(socket, recv_buf, DELIM);
-
-  boost::asio::streambuf::const_buffers_type bufs = recv_buf.data();
-  std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
-
-  json tmp = json::parse(msg);
-
-  if (tmp["response"] == "success") {
+  if (response["response"] == "success") {
     cout << "Successfully logged in" << endl;
   } else {
-    cout << tmp["response"] << endl;
+    cout << response["response"] << endl;
     exit(1);
   }
   
@@ -232,6 +239,8 @@ int main(int argc, char **argv) {
   
   for (;;) { 
   
+    parsed_text.clear();
+
     cout << prompt;
     getline(cin, text);
 
@@ -241,13 +250,17 @@ int main(int argc, char **argv) {
     // but we will allow for more than
     // 2 and ignore the rest
     if (parsed_text.size() > 1) {
-      processText(parsed_text, socket);
-      
+      if (processText(parsed_text, socket)) {
+      json response = recv(socket);
+      std::string response_msg = response["message"];
+      cout << response_msg << endl;
+      } else {
+        continue;
+      }
     } else {
       cout << "error: invalid command" << endl;
     }
     
-    parsed_text.clear();
   }
 
 
@@ -256,7 +269,6 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
 
 
   /*

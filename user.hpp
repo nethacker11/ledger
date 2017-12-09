@@ -20,6 +20,8 @@ public:
   bool isConnected;
   boost::asio::streambuf buffer;
   tcp_connection::pointer connection;
+
+  vector<std::string> transactions;
   //tcp::socket *socket; // can't store the socket, is this a good idea?
 
   User(string name, int btc, int eth)

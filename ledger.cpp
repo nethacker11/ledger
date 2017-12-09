@@ -46,14 +46,26 @@ void Ledger::processCommand(json msg, User *user) {
           // execute pay
           user->btc -= amount;
           tmp->btc += amount;
+
+          // log transaction
+          user->transactions.push_back(user->name +  " paid " + recv_user
+                                        + " " + std::to_string(amount) + " " + currency);
+
+          response["message"] = "Pay successful";
         } else {
           response["message"] = "Insufficient funds";
         }
       } else {
         if (user->eth >= amount) {
-          //execute pay
+          // execute pay
           user->eth -= amount;
           tmp->eth += amount;
+
+          // log transaction
+          user->transactions.push_back(user->name +  " paid " + recv_user
+                                        + " " + std::to_string(amount) + " " + currency);
+
+          response["message"] = "Pay successful";
         } else {
           response["message"] = "Insufficient funds";
         }
@@ -61,6 +73,34 @@ void Ledger::processCommand(json msg, User *user) {
     } else {
       response["message"] = "User not found";
     }
+  } else if (command == "balance") {
+
+    std::string currency = msg["currency"];
+    int current_amount;
+    if (currency == "btc") {
+      current_amount = user->btc;
+    } else {
+      current_amount = user->eth;
+    }
+    response["message"] = to_string(current_amount);
+  } else if (command == "log") {
+
+    std::string response_msg;
+
+    if (msg["user"] == "mine") {
+
+      for ( auto &i: user->transactions ) {
+
+        response_msg += i;
+        response_msg += '\n';
+
+      }
+
+      response["message"] = response_msg;
+
+    }
+
+
   }
   send(response, user->connection->socket_);
 }
