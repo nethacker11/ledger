@@ -65,7 +65,8 @@ public:
   void startAccept();
   void acceptHandler(tcp_connection::pointer new_connection, const boost::system::error_code& e);
   void HandleRead(User *user, const boost::system::error_code &e, size_t msg_len);
-  void processCommand(json msg);
+  void processCommand(json msg, User *user);
+  void send(json msg, tcp::socket &socket);
   User *getUser(std::string name);
 
 };

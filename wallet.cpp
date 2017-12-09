@@ -40,6 +40,13 @@ using json = nlohmann::json;
   
 */
 
+void send(json msg, tcp::socket &socket) {
+
+  ostringstream os;
+  os << msg;
+  boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
+}
+
 bool checkPayString(std::string pay_string) {
 
   size_t str_len = pay_string.length();
@@ -77,7 +84,7 @@ bool checkLogString(std::string log_string) {
   return false;
 }
 
-void processText(std::vector<std::string> parsed_text) {
+void processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
 
   /* valid commands:
    * pay
@@ -86,6 +93,7 @@ void processText(std::vector<std::string> parsed_text) {
    */
 
   json msg;
+  bool valid = false;
   std::string command = parsed_text[0];
 
 
@@ -93,8 +101,18 @@ void processText(std::vector<std::string> parsed_text) {
 
     if (parsed_text.size() > 2) {
       if (checkPayString(parsed_text[2])) {
-        //build string
-        cout << "pay string passed" << endl;
+        //build msg
+
+        valid = true;
+
+        std::string currency = parsed_text[2].substr(parsed_text[2].length() - 3);
+        std::string amount = parsed_text[2].substr(0, parsed_text[2].length() - 3);
+
+        msg["command"] = "pay";
+        msg["user"] = parsed_text[1];
+        msg["currency"] = currency;
+        msg["amount"] = stoi(amount);
+
       } else {
         // improper format
         cout << "pay string failed" << endl;
@@ -102,13 +120,18 @@ void processText(std::vector<std::string> parsed_text) {
     } else {
       // improper format
       cout << "pay string failed" << endl;
-
     }
 
   } else if (command == "balance") {
     
     if (checkBalanceString(parsed_text[1])) {
-      cout << "balance string passed" << endl;
+      // build msg
+
+      valid = true;
+
+      msg["command"] = "balance";
+      msg["currency"] = parsed_text[1];
+
     } else {
       cout << "balance string failed" << endl;
     }
@@ -116,23 +139,26 @@ void processText(std::vector<std::string> parsed_text) {
   } else if (command == "log") {
 
     if (checkLogString(parsed_text[1])) {
-      cout << "log string passed" << endl;
+      // build msg
+
+      valid = true;
+
+      msg["command"] = "log";
+      msg["user"] = parsed_text[1];
     } else {
       cout << "log string failed" << endl;
     }
 
   } else {
     // invalid command
-
+    cout << "invalid command" << endl;
   }
 
+  if (valid) {
+    send(msg, socket);
+  }
 }
-void send(json msg, tcp::socket &socket) {
 
-  ostringstream os;
-  os << msg;
-  boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
-}
 
 json makeMsg(std::string command, std::string data) {
 
@@ -155,7 +181,6 @@ void login(std::string name, tcp::socket &socket) {
 
 int main(int argc, char **argv) {
 
-/*
   if (argc != 2) {
     cout << "usage: wallet <name>" << endl;
     exit(1);
@@ -192,11 +217,12 @@ int main(int argc, char **argv) {
   json tmp = json::parse(msg);
 
   if (tmp["response"] == "success") {
-
     cout << "Successfully logged in" << endl;
+  } else {
+    cout << tmp["response"] << endl;
+    exit(1);
   }
   
-  */
   
 
   std::string text;
@@ -215,7 +241,7 @@ int main(int argc, char **argv) {
     // but we will allow for more than
     // 2 and ignore the rest
     if (parsed_text.size() > 1) {
-      processText(parsed_text);
+      processText(parsed_text, socket);
       
     } else {
       cout << "error: invalid command" << endl;

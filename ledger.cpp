@@ -17,22 +17,59 @@ namespace pt = boost::property_tree;
 
 using json = nlohmann::json;
 
-void Ledger::processCommand(json msg) {
 
+void Ledger::send(json msg, tcp::socket &socket) {
+
+  ostringstream os;
+  os << msg;
+  boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
+}
+
+void Ledger::processCommand(json msg, User *user) {
+
+  json response;
   std::string command = msg["command"];
 
-  if (command == "login") {
+  if (command == "pay") {
 
-    cout << "user " << msg["name"] << " logged in" << endl;
+    std::string recv_user = msg["user"];
+    std::string currency = msg["currency"];
+    int amount = msg["amount"];
 
+    User *tmp = getUser(recv_user);
+
+    if (tmp) {
+
+      // Check for sufficient funds
+      if (currency == "btc") {
+        if (user->btc >= amount) {
+          // execute pay
+          user->btc -= amount;
+          tmp->btc += amount;
+        } else {
+          response["message"] = "Insufficient funds";
+        }
+      } else {
+        if (user->eth >= amount) {
+          //execute pay
+          user->eth -= amount;
+          tmp->eth += amount;
+        } else {
+          response["message"] = "Insufficient funds";
+        }
+      }
+    } else {
+      response["message"] = "User not found";
+    }
   }
-
+  send(response, user->connection->socket_);
 }
 
 void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t msg_len) {
 
   if (!e) {
 
+    cout << "in handle read" << endl;
     json j;
 
     /*
@@ -48,7 +85,16 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
     std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
     j = json::parse(msg);
 
-    processCommand(j);
+    cout << j.dump() << endl;
+    processCommand(j, user);
+
+    for ( auto &i: users ) {
+
+      cout << i->name << endl;
+      cout << "btc: " << i->btc << endl;
+      cout << "eth: " << i->eth << endl;
+    }
+
 
     user->buffer.consume(msg_len + DELIM.length());
 
@@ -57,8 +103,11 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
                      boost::asio::placeholders::error,
                      boost::asio::placeholders::bytes_transferred));
   } else {
-    cerr << "Error reading from client" << endl;
+    // set flag so user can reconnect
+    user->isConnected = false;
+    cerr << "Error reading from client, client disconnected" << endl;
     cerr << e.message() << endl;
+    
   }
 }
 
@@ -96,7 +145,6 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
 
     User *tmp = getUser(name);
     json response;
-    ostringstream os;
 
     // Make sure user exists and is not logged in
     if (tmp) {
@@ -123,9 +171,7 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
       response["response"] = "Username not recognized";
     }
 
-    os << response;
-    boost::asio::write(new_connection->socket_, boost::asio::buffer(os.str() + DELIM));
-
+    send(response, new_connection->socket_);
 
   }
 
@@ -155,8 +201,8 @@ void Ledger::readConfig() {
   BOOST_FOREACH(pt::ptree::value_type &v, root.get_child("Users")) {
 
     string name = v.first;
-    float btc =  v.second.get<float>("btc");
-    float eth =  v.second.get<float>("eth");
+    int btc =  v.second.get<int>("btc");
+    int eth =  v.second.get<int>("eth");
 
     users.push_back(new User(name, btc, eth));
   }
