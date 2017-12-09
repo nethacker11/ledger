@@ -9,6 +9,7 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
 #include <boost/bind.hpp>
+#include <boost/asio/signal_set.hpp>
 
 #define CONFIG_FILE "ledger.config"
 
@@ -25,15 +26,27 @@ void Ledger::send(json msg, tcp::socket &socket) {
   boost::asio::write(socket, boost::asio::buffer(os.str() + DELIM));
 }
 
+json Ledger::recv(tcp::socket &socket) {
+
+  boost::asio::streambuf recv_buf;
+  size_t msg_len = boost::asio::read_until(socket, recv_buf, DELIM);
+
+  boost::asio::streambuf::const_buffers_type bufs = recv_buf.data();
+  string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
+
+  return json::parse(msg);
+
+}
+
 void Ledger::processCommand(json msg, User *user) {
 
   json response;
-  std::string command = msg["command"];
+  string command = msg["command"];
 
   if (command == "pay") {
 
-    std::string recv_user = msg["user"];
-    std::string currency = msg["currency"];
+    string recv_user = msg["user"];
+    string currency = msg["currency"];
     int amount = msg["amount"];
 
     User *tmp = getUser(recv_user);
@@ -75,7 +88,7 @@ void Ledger::processCommand(json msg, User *user) {
     }
   } else if (command == "balance") {
 
-    std::string currency = msg["currency"];
+    string currency = msg["currency"];
     int current_amount;
     if (currency == "btc") {
       current_amount = user->btc;
@@ -86,7 +99,7 @@ void Ledger::processCommand(json msg, User *user) {
 
   } else if (command == "log") {
 
-    std::string response_msg;
+    string response_msg;
 
     if (msg["user"] == "mine") {
  
@@ -122,17 +135,8 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
     cout << "in handle read" << endl;
     json j;
 
-    /*
-    cout << user->buffer.size() << endl;
-    user->buffer.commit(msg_len);
-
-    std::istream is(&user->buffer);
-    std::string msg;
-    is >> msg;
-    */
-
     boost::asio::streambuf::const_buffers_type bufs = user->buffer.data();
-    std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
+    string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
     j = json::parse(msg);
 
     cout << j.dump() << endl;
@@ -175,21 +179,23 @@ void Ledger::startAccept() {
 
 void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::system::error_code& e) {
 
-  std::string msg;
+  string msg;
 
   cout << "in accept handler" << endl;
 
   if (!e) {
 
+    /*
     boost::asio::streambuf buf;
     boost::asio::read_until(new_connection->socket_, buf, DELIM); 
 
     std::istream is(&buf);
-    std::string login;
+    string login;
     is >> login;
+    */
 
-    json login_msg = json::parse(login);
-    std::string name = login_msg["name"];
+    json login_msg = recv(new_connection->socket_);
+    string name = login_msg["name"];
 
     cout << name << endl;
 
@@ -229,7 +235,7 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
     startAccept();
 }
 
-User *Ledger::getUser(std::string name) {
+User *Ledger::getUser(string name) {
 
   for ( auto &i: users ) {
 
@@ -267,10 +273,14 @@ int main(int argc, char **argv) {
   Ledger ledger(io_service);
   cout << "ledger created" << endl;
 
+  boost::asio::signal_set signals(io_service, SIGINT, SIGTERM);
+  signals.async_wait(boost::bind(&boost::asio::io_service::stop, &io_service));
+
   io_service.run();
 
-  
+  cout << "past io_service.run()" << endl;
 
+  
   // Free allocated memory
   for ( auto &i: ledger.users ) {
     delete(i);

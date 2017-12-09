@@ -18,34 +18,6 @@ using boost::asio::ip::tcp;
 using boost::asio::io_service;
 using json = nlohmann::json;
 
-/*
-class tcp_connection
-  // Using shared_ptr and enable_shared_from_this 
-  // because we want to keep the tcp_connection object alive 
-  // as long as there is an operation that refers to it.
-  : public boost::enable_shared_from_this<tcp_connection>
-{
-public:
-  typedef boost::shared_ptr<tcp_connection> pointer;
-
-  static pointer create(boost::asio::io_service& io_service)
-  {
-    return pointer(new tcp_connection(io_service));
-  }
-
-  tcp::socket& socket()
-  {
-    return socket_;
-  }
-
-  tcp_connection(boost::asio::io_service& io_service)
-    : socket_(io_service)
-  {
-  }
-
-  tcp::socket socket_;
-};
-*/
 class Ledger {
 
 public:
@@ -67,6 +39,7 @@ public:
   void HandleRead(User *user, const boost::system::error_code &e, size_t msg_len);
   void processCommand(json msg, User *user);
   void send(json msg, tcp::socket &socket);
+  json recv(tcp::socket &socket);
   User *getUser(std::string name);
 
 };

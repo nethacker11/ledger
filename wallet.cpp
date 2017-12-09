@@ -11,6 +11,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/asio/signal_set.hpp>
 
 using boost::asio::ip::tcp;
 using boost::asio::io_service;
@@ -18,27 +19,8 @@ using namespace std;
 namespace pt = boost::property_tree;
 using json = nlohmann::json;
 
+static volatile sig_atomic_t stop = 0;
 
-
-/*
-
-   { 
-     "name" : "phil"
-     "command" : "login", 
-   }
-
-   {
-     "name" : "phil"
-     "command" : "pay"
-
-     {
-        "name" : "hannah",
-        "currency" : "btc",
-        "amount" : 333
-     }
-  }
-  
-*/
 
 void send(json msg, tcp::socket &socket) {
 
@@ -53,18 +35,18 @@ json recv(tcp::socket &socket) {
   size_t msg_len = boost::asio::read_until(socket, recv_buf, DELIM);
 
   boost::asio::streambuf::const_buffers_type bufs = recv_buf.data();
-  std::string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
+  string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
 
   return json::parse(msg);
 }
 
-bool checkPayString(std::string pay_string) {
+bool checkPayString(string &pay_string) {
 
   size_t str_len = pay_string.length();
 
   if (str_len > 3) {
-    std::string currency = pay_string.substr(str_len - 3);
-    std::string amount = pay_string.substr(0, str_len - 3);
+    string currency = pay_string.substr(str_len - 3);
+    string amount = pay_string.substr(0, str_len - 3);
 
     if (currency == "btc" || currency == "eth") {
 
@@ -79,7 +61,7 @@ bool checkPayString(std::string pay_string) {
   return false;
 }
 
-bool checkBalanceString(std::string balance_string) {
+bool checkBalanceString(string &balance_string) {
 
   if (balance_string == "btc" || balance_string == "eth") {
     return true;
@@ -87,7 +69,7 @@ bool checkBalanceString(std::string balance_string) {
   return false;
 }
 
-bool checkLogString(std::string log_string) {
+bool checkLogString(string &log_string) {
 
   if (log_string == "mine" || log_string == "all") {
     return true;
@@ -95,7 +77,7 @@ bool checkLogString(std::string log_string) {
   return false;
 }
 
-bool processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
+bool processText(std::vector<string> &parsed_text, tcp::socket &socket) {
 
   /* valid commands:
    * pay
@@ -105,7 +87,7 @@ bool processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
 
   json msg;
   bool valid = false;
-  std::string command = parsed_text[0];
+  string command = parsed_text[0];
 
 
   if (command == "pay") {
@@ -116,8 +98,8 @@ bool processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
 
         valid = true;
 
-        std::string currency = parsed_text[2].substr(parsed_text[2].length() - 3);
-        std::string amount = parsed_text[2].substr(0, parsed_text[2].length() - 3);
+        string currency = parsed_text[2].substr(parsed_text[2].length() - 3);
+        string amount = parsed_text[2].substr(0, parsed_text[2].length() - 3);
 
         msg["command"] = "pay";
         msg["user"] = parsed_text[1];
@@ -173,26 +155,24 @@ bool processText(std::vector<std::string> parsed_text, tcp::socket &socket) {
 }
 
 
-json makeMsg(std::string command, std::string data) {
+void login(string &name, tcp::socket &socket) {
 
-  json msg;
+  json login;
 
-  if (command == "login") {
+  login["name"] = name;
+  login["command"] = "login";
 
-    msg["name"] = data;
-    msg["command"] = "login";
-  }
-
-  return msg;
-}
-
-void login(std::string name, tcp::socket &socket) {
-
-  json login = makeMsg("login", name);
   send(login, socket);
 }
 
+void sigHandler(int signum) {
+
+  stop = 1;
+}
+
 int main(int argc, char **argv) {
+
+  signal(SIGINT, sigHandler);
 
   if (argc != 2) {
     cout << "usage: wallet <name>" << endl;
@@ -217,7 +197,9 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  std::string name = argv[1];
+
+
+  string name = argv[1];
 
   // aknowdledge login
   login(name, socket);
@@ -231,13 +213,12 @@ int main(int argc, char **argv) {
   }
   
   
+  string text;
+  string prompt = "Command: ";
 
-  std::string text;
-  std::string prompt = "Command: ";
-
-  std::vector<std::string> parsed_text;
+  std::vector<string> parsed_text;
   
-  for (;;) { 
+  while (!stop) { 
   
     parsed_text.clear();
 
@@ -252,7 +233,7 @@ int main(int argc, char **argv) {
     if (parsed_text.size() > 1) {
       if (processText(parsed_text, socket)) {
       json response = recv(socket);
-      std::string response_msg = response["message"];
+      string response_msg = response["message"];
       cout << response_msg << endl;
       } else {
         continue;
@@ -263,20 +244,8 @@ int main(int argc, char **argv) {
     
   }
 
-
-
-
+  cout << "ending wallet" << endl;
 
   return 0;
 }
 
-
-  /*
-  cout << msg_len << endl;
-  recv_buf.commit(msg_len);
-
-  std::istream is(&recv_buf);
-  std::string msg;
-  is >> msg;
-
-  */
