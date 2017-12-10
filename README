@@ -1,0 +1,4 @@
+
+Ledger program to keep track of eth and btc.
+
+Run on linux with boost installed. Make sure boost is installed at /usr/lib/x86_64-linux-gnu. If not change the -L flag in Makefile to point to your boost lib directory.
