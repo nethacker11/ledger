@@ -5,6 +5,7 @@
 #include <ctime>
 #include <string>
 #include <iostream>
+#include <mutex>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
@@ -23,7 +24,8 @@ class Ledger {
 public:
   vector<User*> users;
   boost::asio::streambuf b;
-  vector<tcp_connection::pointer> connections;
+  std::mutex mutex;
+//  vector<tcp_connection::pointer> connections;
 
   tcp::acceptor acceptor;
 

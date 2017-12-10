@@ -140,7 +140,11 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
     j = json::parse(msg);
 
     cout << j.dump() << endl;
+
+
+    mutex.lock();
     processCommand(j, user);
+    mutex.unlock();
 
     for ( auto &i: users ) {
 
@@ -170,7 +174,8 @@ void Ledger::startAccept() {
   tcp_connection::pointer new_connection = tcp_connection::create(acceptor.get_io_service());
   
     // Create socket to accept next client
-    connections.push_back(new_connection);
+
+    //connections.push_back(new_connection);
 
 
     acceptor.async_accept(new_connection->socket_, boost::bind(&Ledger::acceptHandler, 
