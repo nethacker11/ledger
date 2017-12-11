@@ -1,6 +1,6 @@
 CC = g++-4.9
-CFLAGS = -std=c++11 -Iinclude -static
-LDFLAGS = -Llib -lboost_system -pthread
+CFLAGS = -std=c++11
+LDFLAGS = -L /usr/lib/x86_64-linux-gnu -lboost_system -pthread
 DEPS = $(wildcard *.hpp)
 
 all: ledger wallet

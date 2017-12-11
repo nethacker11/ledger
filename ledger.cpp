@@ -132,27 +132,15 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
 
   if (!e) {
 
-    cout << "in handle read" << endl;
     json j;
 
     boost::asio::streambuf::const_buffers_type bufs = user->buffer.data();
     string msg(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + msg_len - DELIM.length());
     j = json::parse(msg);
 
-    cout << j.dump() << endl;
-
-
     mutex.lock();
     processCommand(j, user);
     mutex.unlock();
-
-    for ( auto &i: users ) {
-
-      cout << i->name << endl;
-      cout << "btc: " << i->btc << endl;
-      cout << "eth: " << i->eth << endl;
-    }
-
 
     user->buffer.consume(msg_len + DELIM.length());
 
@@ -175,9 +163,6 @@ void Ledger::startAccept() {
   
     // Create socket to accept next client
 
-    //connections.push_back(new_connection);
-
-
     acceptor.async_accept(new_connection->socket_, boost::bind(&Ledger::acceptHandler, 
                           this, new_connection, boost::asio::placeholders::error));
 }
@@ -189,15 +174,6 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
   cout << "in accept handler" << endl;
 
   if (!e) {
-
-    /*
-    boost::asio::streambuf buf;
-    boost::asio::read_until(new_connection->socket_, buf, DELIM); 
-
-    std::istream is(&buf);
-    string login;
-    is >> login;
-    */
 
     json login_msg = recv(new_connection->socket_);
     string name = login_msg["name"];
@@ -268,7 +244,6 @@ void Ledger::readConfig() {
     users.push_back(new User(name, btc, eth));
   }
 }
-
 
 int main(int argc, char **argv) {
 
