@@ -10,6 +10,10 @@
 using boost::asio::ip::tcp;
 using boost::asio::io_service;
 
+/* tcp_connection class taken from
+ * http://www.bogotobogo.com/cplusplus/Boost/boost_AsynchIO_asio_tcpip_socket_server_client_timer_bind_handler_multithreading_synchronizing_network_D.php
+ */
+
 class tcp_connection
   // Using shared_ptr and enable_shared_from_this 
   // because we want to keep the tcp_connection object alive 

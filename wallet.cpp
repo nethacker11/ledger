@@ -21,7 +21,6 @@ using json = nlohmann::json;
 
 static volatile sig_atomic_t stop = 0;
 
-
 void send(json msg, tcp::socket &socket) {
 
   ostringstream os;
@@ -85,10 +84,16 @@ bool processText(std::vector<string> &parsed_text, tcp::socket &socket) {
    * log
    */
 
+  if (parsed_text.size() < 2) {
+    cout << "insufficient arguments" << endl;
+    return false;
+  }
+
   json msg;
   bool valid = false;
   string command = parsed_text[0];
 
+  //-------------------------------------------------pay
 
   if (command == "pay") {
 
@@ -108,12 +113,14 @@ bool processText(std::vector<string> &parsed_text, tcp::socket &socket) {
 
       } else {
         // improper format
-        cout << "pay string failed" << endl;
+        cout << "pay command failed: invalid format" << endl;
       }
     } else {
       // improper format
-      cout << "pay string failed" << endl;
+      cout << "pay command failed: invalid format" << endl;
     }
+
+  //-------------------------------------------------balance
 
   } else if (command == "balance") {
     
@@ -126,8 +133,10 @@ bool processText(std::vector<string> &parsed_text, tcp::socket &socket) {
       msg["currency"] = parsed_text[1];
 
     } else {
-      cout << "balance string failed" << endl;
+      cout << "balance command failed: invalid format" << endl;
     }
+
+  //-------------------------------------------------log
 
   } else if (command == "log") {
 
@@ -139,12 +148,13 @@ bool processText(std::vector<string> &parsed_text, tcp::socket &socket) {
       msg["command"] = "log";
       msg["user"] = parsed_text[1];
     } else {
-      cout << "log string failed" << endl;
+      cout << "log command failed: invalid format" << endl;
     }
 
   } else {
     // invalid command
-    cout << "invalid command" << endl;
+    cout << "command not recognized. valid commands:" << endl;
+    cout << "pay, balance, log" << endl;
   }
 
   if (valid) {
@@ -165,6 +175,16 @@ void login(string &name, tcp::socket &socket) {
   send(login, socket);
 }
 
+tcp::resolver::iterator networkSetup(io_service &io_service, tcp::socket &socket) {
+
+  boost::asio::io_service::work work(io_service);
+
+  tcp::resolver resolver(io_service);
+  tcp::resolver::query query(ADDRESS, PORT_STR);
+  tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+  return endpoint_iterator;
+}
+
 void sigHandler(int signum) {
 
   stop = 1;
@@ -181,14 +201,9 @@ int main(int argc, char **argv) {
 
 
   io_service io_service;
-  boost::asio::io_service::work work(io_service);
-
   tcp::socket socket(io_service);
+  tcp::resolver::iterator endpoint_iterator = networkSetup(io_service, socket);
 
-  tcp::resolver resolver(io_service);
-  tcp::resolver::query query(ADDRESS, PORT_STR);
-  tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-  
   try {
     boost::asio::connect(socket, endpoint_iterator);
   } catch (const boost::system::system_error &e) {
@@ -227,24 +242,15 @@ int main(int argc, char **argv) {
 
     boost::split(parsed_text, text, boost::is_any_of(" "));
 
-    // Every command needs 2 arguments,
-    // but we will allow for more than
-    // 2 and ignore the rest
-    if (parsed_text.size() > 1) {
-      if (processText(parsed_text, socket)) {
+    if (processText(parsed_text, socket)) {
       json response = recv(socket);
       string response_msg = response["message"];
       cout << response_msg << endl;
-      } else {
-        continue;
-      }
     } else {
-      cout << "error: invalid command" << endl;
+      continue;
     }
-    
-  }
 
-  cout << "ending wallet" << endl;
+  }
 
   return 0;
 }
