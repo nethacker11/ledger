@@ -49,7 +49,7 @@ bool checkPayString(string &pay_string) {
 
     if (currency == "btc" || currency == "eth") {
 
-      if (strtol(amount.c_str(), NULL, 10) != 0) {
+      if (strtol(amount.c_str(), NULL, 10) > 0) {
 
         return true;
       }

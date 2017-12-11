@@ -151,8 +151,7 @@ void Ledger::HandleRead(User *user, const boost::system::error_code &e, size_t m
   } else {
     // set flag so user can reconnect
     user->isConnected = false;
-    cerr << "Error reading from client, client disconnected" << endl;
-    cerr << e.message() << endl;
+    cerr << user->name + " disconnected" << endl;
     
   }
 }
@@ -171,14 +170,11 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
 
   string msg;
 
-  cout << "in accept handler" << endl;
-
   if (!e) {
 
     json login_msg = recv(new_connection->socket_);
     string name = login_msg["name"];
 
-    cout << name << endl;
 
     User *tmp = getUser(name);
     json response;
@@ -198,6 +194,8 @@ void Ledger::acceptHandler(tcp_connection::pointer new_connection, const boost::
 
 
         response["response"] = "success";
+        
+        cout << name + " logged in" << endl;
 
       } else {
 
@@ -251,15 +249,11 @@ int main(int argc, char **argv) {
   boost::asio::io_service::work work(io_service);
 
   Ledger ledger(io_service);
-  cout << "ledger created" << endl;
 
   boost::asio::signal_set signals(io_service, SIGINT, SIGTERM);
   signals.async_wait(boost::bind(&boost::asio::io_service::stop, &io_service));
 
   io_service.run();
-
-  cout << "past io_service.run()" << endl;
-
   
   // Free allocated memory
   for ( auto &i: ledger.users ) {
